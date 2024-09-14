@@ -12,6 +12,8 @@ python-dotenv = "^1.0.1"
 uvicorn = "^0.15.0"
 together = "^1.2.12"
 fastapi = "^0.114.2"
+asyncpg = "^0.29.0"
+sqlalchemy = "^2.0.34"
 
 
 [build-system]
