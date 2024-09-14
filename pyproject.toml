@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "bargain-for-me-backend"
+version = "0.1.0"
+description = ""
+authors = ["Sanjeeb Dey <sanjeebdey1@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+supabase = "^2.7.4"
+python-dotenv = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
