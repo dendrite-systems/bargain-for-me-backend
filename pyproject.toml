@@ -12,6 +12,7 @@ python-dotenv = "^1.0.1"
 uvicorn = "^0.15.0"
 together = "^1.2.12"
 fastapi = "^0.114.2"
+pydantic = "^2.9.1"
 
 
 [build-system]
