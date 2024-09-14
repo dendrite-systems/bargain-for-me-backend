@@ -42,6 +42,8 @@ def sign_out():
     response = supabase.auth.sign_out()
     return response
 
+
+
 if __name__ == "__main__":
     # Example usage
     email = "user2@example.com"
