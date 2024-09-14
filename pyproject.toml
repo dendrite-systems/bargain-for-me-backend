@@ -9,6 +9,10 @@ readme = "README.md"
 python = "^3.10"
 supabase = "^2.7.4"
 python-dotenv = "^1.0.1"
+fastapi = "^0.68.0"
+uvicorn = "^0.15.0"
+together = "^0.2.0"
+pydantic = "^1.8.2"
 
 
 [build-system]
