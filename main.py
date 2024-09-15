@@ -8,6 +8,7 @@ from together import Together
 from typing import List
 from Prompts.BrowsingAgent import RANK_PROMPT_TEMPLATE
 from Prompts.NegotiationAgent import NEGOTIATION_PROMPT_TEMPLATE
+from Prompts.ValidateAgent import VALIDATE_PROMPT_TEMPLATE
 import json
 import re
 import logging
@@ -68,12 +69,48 @@ class BrowsingResponse(BaseModel):
 class shortItemList(BaseModel):
     items: List[shortItem]
 
+class ValidateItem(BaseModel):
+    description: str
+    price: float
+    listedprice: float
+    message: str
+    datepublished: str
+    url: str
+
+class ValidateRequest(BaseModel):
+    request: str
+    items: List[ValidateItem]
+
+class ValidatedItem(BaseModel):
+    item_id: str
+    reasoning: str
+    relevant: int
+    first_message: str
+
+class ValidateResponse(BaseModel):
+    validated_items: List[ValidatedItem]
+
 class ChatRequest(BaseModel):
     message: str
     chat_history: list = []
 
+class Message(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    context: str
+    users_goal: str
+    messages: List[Message]
+
+class NegotiationResponse(BaseModel):
+    reasoning: str
+    content: str
+
 class ChatResponse(BaseModel):
-    response: str
+    response: NegotiationResponse
+    conversation_ended: bool
+
 # Lifespan context manager for resource management
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -139,7 +176,8 @@ async def rank_endpoint(request: BrowsingRequest):
         # Ensure the response is in the correct format
         top_listings = [Listing(**item) for item in parsed_response]
 
-        return BrowsingResponse(top_listings=top_listings)
+        if rank_response.strip().lower() == "null" or rank_response.strip() == "[]":
+            return BrowsingResponse(top_listings=None)
 
     except json.JSONDecodeError as json_error:
         raise HTTPException(status_code=500, detail=f"Invalid JSON response from AI: {str(json_error)}")
@@ -275,24 +313,101 @@ async def getViables(id: int = Query(...)):
         if conn:
             await app.state.db_pool.release(conn)
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
+@app.post("/validate", response_model=ValidateResponse)
+async def validate_endpoint(request: ValidateRequest):
     try:
-        negotiation_prompt = NEGOTIATION_PROMPT_TEMPLATE.format(
-            request=request.messages
+        listings_text = "\n\n".join([
+            f"Item description: {item.description}\n"
+            f"Price: {item.price}\n"
+            f"Listed price: {item.listedprice}\n"
+            f"Message: {item.message}\n"
+            f"Date published: {item.datepublished}\n"
+            f"URL: {item.url}"
+            for item in request.items
+        ])
+
+        validate_prompt = VALIDATE_PROMPT_TEMPLATE.format(
+            request=request.request,
+            listings=listings_text
         )
-        messages = request.chat_history + [{"role": "user", "content": negotiation_prompt}]
+        
+        messages = [{"role": "user", "content": validate_prompt}]
 
         completion = client.chat.completions.create(
             model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
             messages=messages,
-            max_tokens=4096,
-            temperature=0.3
+            max_tokens=1024,
+            temperature=0,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
         )
-        print(completion.choices[0].message.content)
-        return ChatResponse(response=completion.choices[0].message.content)
+
+        validate_response = completion.choices[0].message.content
+
+        # Parse the response
+        parsed_response = json.loads(validate_response)
+
+        # Convert the parsed response to ValidatedItem objects
+        validated_items = [ValidatedItem(**item) for item in parsed_response]
+
+        return ValidateResponse(validated_items=validated_items)
+
+    except json.JSONDecodeError as json_error:
+        raise HTTPException(status_code=500, detail=f"Invalid JSON response from LLM: {str(json_error)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest):
+    try:
+        # Construct the conversation history
+        conversation_history = "\n".join([f"{msg.role}: {msg.content}" for msg in request.messages])
+
+        negotiation_prompt = NEGOTIATION_PROMPT_TEMPLATE.format(
+            context=request.context,
+            users_goal=request.users_goal,
+            conversation_history=conversation_history
+        )
+
+        messages = [{"role": "user", "content": negotiation_prompt}]
+
+        completion = client.chat.completions.create(
+            model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+            messages=messages,
+            max_tokens=1024,
+            temperature=0.7,
+            top_p=0.9,
+            top_k=50,
+            repetition_penalty=1,
+        )
+
+        bot_response = completion.choices[0].message.content
+        logging.info(f"AI Response: {bot_response}")
+
+        # Parse the JSON response
+        negotiation_response = json.loads(bot_response)
+
+        # Check if this is an ending message
+        conversation_ended = is_ending_message(negotiation_response['content'])
+
+        return ChatResponse(
+            response=NegotiationResponse(**negotiation_response),
+            conversation_ended=conversation_ended
+        )
+
+    except json.JSONDecodeError as json_error:
+        raise HTTPException(status_code=500, detail=f"Invalid JSON response from bot: {str(json_error)}")
+    except Exception as e:
+        logging.error(f"Error in chat endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+def is_ending_message(message: str) -> bool:
+    ending_patterns = [
+        r"thank you,?\s+all the best",
+        r"amazing,?\s+thank you"
+    ]
+    return any(re.search(pattern, message.lower()) is not None for pattern in ending_patterns)
 
 if __name__ == "__main__":
     import uvicorn

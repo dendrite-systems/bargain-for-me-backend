@@ -8,6 +8,7 @@ Listings:
 {listings}
 
 Please analyze the request and the available listings. Return only the top 8 most relevant listings based on the request, maintaining their original details. Ensure the response is a valid JSON array.
+If there are less than 8 relevant listings or nothing is relevant, return a null response.
 
 Response format:
 [
