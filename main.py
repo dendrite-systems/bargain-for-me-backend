@@ -199,11 +199,12 @@ async def rank_endpoint(request: Request):
         print("Parsed response:", parsed_response)
 
         # Ensure the response is in the correct format
-        top_listings = [Listing(**item) for item in parsed_response]
+        top_listings = [Listing(**url) for url in parsed_response]
         if rank_response.strip().lower() == "null" or rank_response.strip(
         ) == "[]":
             return BrowsingResponse(top_listings=None)
         return BrowsingResponse(top_listings=top_listings)
+    
     except json.JSONDecodeError as json_error:
         print(f"JSON Decode Error: {str(json_error)}")
         raise HTTPException(

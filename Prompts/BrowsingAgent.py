@@ -7,8 +7,8 @@ User's request: {request}
 Listings:
 {listings}
 
-Please analyze the request and the available listings. Return only the top 8 most relevant listings based on the request, maintaining their original details. Ensure the response is a valid JSON array.
-
+Please analyze the request and the available listings. Return only relevant listings based on the request, maintaining their original details. Ensure the response is a valid JSON array.
+If none of the listings look relevant, return null. Do not return anything else. 
 Response format:
 [
   {{"url": "Item Url"}},
