@@ -35,7 +35,7 @@ class ItemCreate(BaseModel):
     estimateprice: float
     minprice: float
     maxprice: float
-    
+
 class ChatRequest(BaseModel):
     message: str
     chat_history: list = []
@@ -121,7 +121,7 @@ async def chat_endpoint(request: ChatRequest):
         messages = request.chat_history + [{"role": "user", "content": request.message}]
 
         completion = client.chat.completions.create(
-            model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+            model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
             messages=messages,
             max_tokens=4096,
             temperature=0.3
