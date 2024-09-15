@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from together import Together
 from typing import List
-from Prompts.BrowsingAgent import BROWSING_PROMPT_TEMPLATE
+from Prompts.BrowsingAgent import RANK_PROMPT_TEMPLATE
+from Prompts.NegotiationAgent import NEGOTIATION_PROMPT_TEMPLATE
 import json
 import re
 import logging
@@ -96,8 +97,8 @@ async def test_db():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {e}")
 
-@app.post("/browse", response_model=BrowsingResponse)
-async def browse_endpoint(request: BrowsingRequest):
+@app.post("/rank", response_model=BrowsingResponse)
+async def rank_endpoint(request: BrowsingRequest):
     try:
         # for item in request.items:
             # print(item)
@@ -108,12 +109,12 @@ async def browse_endpoint(request: BrowsingRequest):
             for item in request.items
         ])
 
-        updated_prompt = BROWSING_PROMPT_TEMPLATE.format(
+        rank_prompt = RANK_PROMPT_TEMPLATE.format(
             request=request.request,
             listings=listings_text
         )
 
-        messages = [{"role": "user", "content": updated_prompt}]
+        messages = [{"role": "user", "content": rank_prompt}]
 
         completion = client.chat.completions.create(
             model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
@@ -125,10 +126,10 @@ async def browse_endpoint(request: BrowsingRequest):
             repetition_penalty=1,
         )
 
-        ai_response = completion.choices[0].message.content
+        rank_response = completion.choices[0].message.content
 
         # Attempt to clean the response if it's not a valid JSON
-        cleaned_response = ai_response.strip()
+        cleaned_response = rank_response.strip()
         if not (cleaned_response.startswith('[') and cleaned_response.endswith(']')):
             cleaned_response = cleaned_response.split('[', 1)[-1].rsplit(']', 1)[0]
             cleaned_response = f"[{cleaned_response}]"
@@ -197,22 +198,6 @@ async def create_item(item: Item):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
         
-@app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
-    try:
-        messages = request.chat_history + [{"role": "user", "content": request.message}]
-
-        completion = client.chat.completions.create(
-            model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
-            messages=messages,
-            max_tokens=4096,
-            temperature=0.3
-        )
-        print(completion.choices[0].message.content)
-        return ChatResponse(response=completion.choices[0].message.content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 class ItemList(BaseModel):
     items: List[Item]
@@ -289,6 +274,25 @@ async def getViables(id: int = Query(...)):
         # Ensure the connection is released back to the pool
         if conn:
             await app.state.db_pool.release(conn)
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest):
+    try:
+        negotiation_prompt = NEGOTIATION_PROMPT_TEMPLATE.format(
+            request=request.messages
+        )
+        messages = request.chat_history + [{"role": "user", "content": negotiation_prompt}]
+
+        completion = client.chat.completions.create(
+            model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+            messages=messages,
+            max_tokens=4096,
+            temperature=0.3
+        )
+        print(completion.choices[0].message.content)
+        return ChatResponse(response=completion.choices[0].message.content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
