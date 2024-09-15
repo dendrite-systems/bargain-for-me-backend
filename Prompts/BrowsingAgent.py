@@ -1,7 +1,8 @@
-BROWSING_PROMPT_TEMPLATE = """
-Given the following request and listings, please return a JSON array of the top 3 most relevant listings. Each listing in the array should be a JSON object with 'name', 'description', and 'price' fields.
+RANK_PROMPT_TEMPLATE = """
+Given the following request and listings, please return a JSON array of the top 3 most relevant listings to the user's request.
+Each listing in the array should be a JSON object with 'name', 'description', and 'price' fields.
 
-Request: {request}
+User's request: {request}
 
 Listings:
 {listings}
