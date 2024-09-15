@@ -226,16 +226,7 @@ async def search_item(request: Request):
         # print(item)
         item = await request.json()
         print("Parsed request:", item)
-        # item = json.loads(parsed)
 
-        # Create listings text
-        # listings_text = "\n\n".join([
-        #     f"userid: {item.get('userid', 'N/A')}\n"
-        #     f"searchitem: {item.get('searchitem', 'N/A')}\n"
-        #     f"minprice: {item.get('minprice', 'N/A')}\n",
-        #     f"maxprice: {item.get('maxprice', 'N/A')}"
-        #     for item in request_json.get("items", [])
-        # ])
         conn = await app.state.db_pool.acquire()
         query = """
             INSERT INTO item_search (userid, searchitem, minprice, maxprice)
@@ -296,14 +287,6 @@ async def create_item(request: Request):
 
 class ItemList(BaseModel):
     items: List[Item]
-
-
-# @app.post("/rank")
-# async def rank(item_list: shortItemList):
-#     # Extract the URLs from the items
-#     item_urls = [item.url for item in item_list.items]
-
-#     return {"urls": item_urls}
 
 
 @app.post("/viable")
@@ -431,20 +414,26 @@ async def validate_endpoint(request: ValidateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
+@app.post("/chat")
+async def chat_endpoint(request: Request):
     try:
+        request_json = await request.json()
+        print("Parsed request:", request_json)
+        print(request_json.keys())
         # Construct the conversation history
-        conversation_history = "\n".join(
-            [f"{msg.role}: {msg.content}" for msg in request.messages])
-
+        # conversation_history = "\n".join(
+        #     [f"{msg['role']}: {msg['content']}" for msg in request_json['chat_history']])
+        # print(conversation_history)
+        context = request_json['context']
+        item_description = request_json['item_description']
+        conversation_history=request_json['chat_history']
         negotiation_prompt = NEGOTIATION_PROMPT_TEMPLATE.format(
-            context=request.context,
-            users_goal=request.users_goal,
+            context=context,
+            users_goal=item_description,
             conversation_history=conversation_history)
 
         messages = [{"role": "user", "content": negotiation_prompt}]
-
+        print(messages)
         completion = client.chat.completions.create(
             model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
             messages=messages,
@@ -457,16 +446,14 @@ async def chat_endpoint(request: ChatRequest):
 
         bot_response = completion.choices[0].message.content
         logging.info(f"AI Response: {bot_response}")
-
+        print("raw reponse", bot_response)
         # Parse the JSON response
         negotiation_response = json.loads(bot_response)
 
         # Check if this is an ending message
         conversation_ended = is_ending_message(negotiation_response['content'])
-
-        return ChatResponse(
-            response=NegotiationResponse(**negotiation_response),
-            conversation_ended=conversation_ended)
+        print(negotiation_response)
+        return negotiation_response
 
     except json.JSONDecodeError as json_error:
         raise HTTPException(
