@@ -165,7 +165,7 @@ async def rank_endpoint(request: BrowsingRequest):
 
         rank_response = completion.choices[0].message.content
 
-        # Attempt to clean the response if it's not a valid JSON
+        # Clean the response if it's not a valid JSON
         cleaned_response = rank_response.strip()
         if not (cleaned_response.startswith('[') and cleaned_response.endswith(']')):
             cleaned_response = cleaned_response.split('[', 1)[-1].rsplit(']', 1)[0]
@@ -320,7 +320,6 @@ async def validate_endpoint(request: ValidateRequest):
             f"Item description: {item.description}\n"
             f"Price: {item.price}\n"
             f"Listed price: {item.listedprice}\n"
-            f"Message: {item.message}\n"
             f"Date published: {item.datepublished}\n"
             f"URL: {item.url}"
             for item in request.items
