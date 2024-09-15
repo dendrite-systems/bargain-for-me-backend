@@ -220,18 +220,30 @@ async def rank_endpoint(request: Request):
 
 
 # Create new item in the database
-@app.post("/searchItems", response_model=dict)
-async def search_item(item: ItemSearch):
+@app.post("/searchItems")
+async def search_item(request: Request):
     try:
-        print(item)
+        # print(item)
+        item = await request.json()
+        print("Parsed request:", item)
+        # item = json.loads(parsed)
+
+        # Create listings text
+        # listings_text = "\n\n".join([
+        #     f"userid: {item.get('userid', 'N/A')}\n"
+        #     f"searchitem: {item.get('searchitem', 'N/A')}\n"
+        #     f"minprice: {item.get('minprice', 'N/A')}\n",
+        #     f"maxprice: {item.get('maxprice', 'N/A')}"
+        #     for item in request_json.get("items", [])
+        # ])
         conn = await app.state.db_pool.acquire()
         query = """
             INSERT INTO item_search (userid, searchitem, minprice, maxprice)
             VALUES ($1, $2, $3, $4)
             RETURNING id, userid, searchitem, minprice, maxprice
         """
-        result = await conn.fetchrow(query, item.userid, item.searchitem,
-                                     item.minprice, item.maxprice)
+        result = await conn.fetchrow(query, item['userid'], item['searchitem'],
+                                     item['minprice'], item['maxprice'])
         await app.state.db_pool.release(conn)
         return {
             "id": result["id"],
@@ -245,20 +257,23 @@ async def search_item(item: ItemSearch):
                             detail=f"Failed to create item: {e}")
 
 
-@app.post("/addItem", response_model=dict)
-async def create_item(item: Item):
+@app.post("/addItem")
+async def create_item(request: Request):
     try:
+        item = await request.json()
+        print("Parsed request:", item)
+        
         conn = await app.state.db_pool.acquire()
         query = """
             INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished))
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished
         """
-        result = await conn.fetchrow(query, item.description, item.searchid,
-                                     item.url, item.image, item.message,
-                                     item.itemsearch, item.listedprice,
-                                     item.estimateprice, item.minprice,
-                                     item.maxprice, item.datepublished)
+        result = await conn.fetchrow(query, item['description'], item['searchid'],
+                                     item['url'], item['image'], item['message'],
+                                     item['itemsearch'], item['listedprice'],
+                                     item['estimateprice'], item['minprice'],
+                                     item['maxprice'], item['datepublished'])
         await app.state.db_pool.release(conn)
         return {
             "id": result["id"],
@@ -300,11 +315,11 @@ async def viable(item: Item):
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished
         """
-        result = await conn.fetchrow(query, item.description, item.searchid,
-                                     item.url, item.image, item.message,
-                                     item.itemsearch, item.listedprice,
-                                     item.estimateprice, item.minprice,
-                                     item.maxprice, item.datepublished)
+        result = await conn.fetchrow(query, item['description'], item['searchid'],
+             item['url'], item['image'], item['message'],
+             item['itemsearch'], item['listedprice'],
+             item['estimateprice'], item['minprice'],
+             item['maxprice'], item['datepublished'])
         await app.state.db_pool.release(conn)
         return {
             "id": result["id"],
@@ -326,22 +341,23 @@ async def viable(item: Item):
 
 
 @app.post("/viables")
-async def viables(item_list: ItemList):
+async def viables(request: Request):
     try:
+        request_json = await request.json()
+        # print("Parsed request:", request_json)
         conn = await app.state.db_pool.acquire()
         query = """
             INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished
         """
-        for item in item_list.items:
+        for item in request_json.get("items", []):
 
-            result = await conn.fetchrow(query, item.description,
-                                         item.searchid, item.url, item.image,
-                                         item.message, item.itemsearch,
-                                         item.listedprice, item.estimateprice,
-                                         item.minprice, item.maxprice,
-                                         item.datepublished)
+            result = await conn.fetchrow(query, item.get('description', 'N/A'), item.get('searchid', 'N/A'),
+                 item.get('url', 'N/A'), item.get('image', 'N/A'), item.get('message', 'N/A'),
+                 item.get('itemsearch', 'N/A'), item.get('listedprice', 'N/A'),
+                 item.get('estimateprice', 'N/A'), item.get('minprice', 'N/A'),
+                 item.get('maxprice', 'N/A'), item.get('datepublished', 'N/A'))
         await app.state.db_pool.release(conn)
         return "Added viable options"
     except Exception as e:
