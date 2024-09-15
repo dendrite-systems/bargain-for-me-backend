@@ -145,7 +145,10 @@ class ItemList(BaseModel):
 
 @app.post("/rank")
 async def rank(item_list: ItemList):
-    return {"received_items": item_list.items}
+    # Extract the URLs from the items
+    item_urls = [item.url for item in item_list.items]
+
+    return {"urls": item_urls}
 
 if __name__ == "__main__":
     import uvicorn
