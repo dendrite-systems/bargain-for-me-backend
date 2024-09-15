@@ -222,3 +222,7 @@
     "content": "I was thinking more along the lines of $95, considering it's a great couch but I have a tight budget.",
     "reasoning": "The seller has already agreed to $115, which is $35 above the user's goal. I'm trying to bring the price down further by offering a lower price that is still reasonable, given the couch's great condition. By mentioning the tight budget, I'm also trying to appeal to the seller's willingness to negotiate and find a mutually agreeable price."
 }
+2024-09-15 19:57:17,492 - INFO - Started server process [5185]
+2024-09-15 19:57:17,493 - INFO - Waiting for application startup.
+2024-09-15 19:57:18,513 - INFO - Application startup complete.
+2024-09-15 19:57:18,514 - INFO - Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)

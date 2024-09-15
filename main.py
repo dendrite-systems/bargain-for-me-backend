@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, ValidationError
 import asyncpg
 from contextlib import asynccontextmanager
@@ -10,13 +10,13 @@ from Prompts.BrowsingAgent import RANK_PROMPT_TEMPLATE
 from Prompts.NegotiationAgent import NEGOTIATION_PROMPT_TEMPLATE
 from Prompts.ValidateAgent import VALIDATE_PROMPT_TEMPLATE
 import json
+import json
 import re
 import logging
 
-
-logging.basicConfig(filename='negotiation.log', level=logging.INFO, 
-format='%(asctime)s - %(levelname)s - %(message)s')
-
+logging.basicConfig(filename='negotiation.log',
+                    level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load environment variables
 load_dotenv()
@@ -28,11 +28,13 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # FastAPI app initialization
 # app = FastAPI()
 
+
 class ItemSearch(BaseModel):
     userid: str
     searchitem: str
     minprice: float
     maxprice: float
+
 
 class Item(BaseModel):
     description: str
@@ -47,27 +49,33 @@ class Item(BaseModel):
     maxprice: float
     datepublished: str
 
+
 class shortItem(BaseModel):
     description: str
     imageUrl: str
     url: str
     price: float
-    
+
+
 class Listing(BaseModel):
     # name: str
     description: str
     price: float
+
 
 class BrowsingRequest(BaseModel):
     request: str
     searchid: int
     items: List[shortItem]
 
+
 class BrowsingResponse(BaseModel):
     top_listings: list[Listing]
 
+
 class shortItemList(BaseModel):
     items: List[shortItem]
+
 
 class ValidateItem(BaseModel):
     description: str
@@ -77,9 +85,11 @@ class ValidateItem(BaseModel):
     datepublished: str
     url: str
 
+
 class ValidateRequest(BaseModel):
     request: str
     items: List[ValidateItem]
+
 
 class ValidatedItem(BaseModel):
     item_id: str
@@ -87,29 +97,36 @@ class ValidatedItem(BaseModel):
     relevant: int
     first_message: str
 
+
 class ValidateResponse(BaseModel):
     validated_items: List[ValidatedItem]
+
 
 class ChatRequest(BaseModel):
     message: str
     chat_history: list = []
 
+
 class Message(BaseModel):
     role: str
     content: str
+
 
 class ChatRequest(BaseModel):
     context: str
     users_goal: str
     messages: List[Message]
 
+
 class NegotiationResponse(BaseModel):
     reasoning: str
     content: str
 
+
 class ChatResponse(BaseModel):
     response: NegotiationResponse
     conversation_ended: bool
+
 
 # Lifespan context manager for resource management
 @asynccontextmanager
@@ -120,8 +137,10 @@ async def lifespan(app: FastAPI):
     # Clean up (close connection pool) when app shuts down
     await app.state.db_pool.close()
 
+
 # FastAPI app initialization with lifespan
 app = FastAPI(lifespan=lifespan)
+
 
 # Test connection endpoint
 @app.get("/test_db")
@@ -132,27 +151,29 @@ async def test_db():
         await app.state.db_pool.release(conn)
         return {"PostgreSQL Version": version}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {e}")
+        raise HTTPException(status_code=500,
+                            detail=f"Database connection failed: {e}")
 
-@app.post("/rank", response_model=BrowsingResponse)
-async def rank_endpoint(request: BrowsingRequest):
+
+@app.post("/rank")
+async def rank_endpoint(request: Request):
     try:
-        # for item in request.items:
-            # print(item)
+        # Parse request JSON
+        request_json = await request.json()
+        print("Parsed request:", request_json)
+
+        # Create listings text
         listings_text = "\n\n".join([
-            # f"Item name: {item.name}\n"
-            f"Item description: {item.description}\n"
-            f"Price: {item.price}"
-            for item in request.items
+            f"Item description: {item.get('description', 'N/A')}\n"
+            f"Price: {item.get('price', 'N/A')}"
+            for item in request_json.get("items", [])
         ])
+        print("Listings text:", listings_text)
 
-        rank_prompt = RANK_PROMPT_TEMPLATE.format(
-            request=request.request,
-            listings=listings_text
-        )
-
+        rank_prompt = RANK_PROMPT_TEMPLATE.format(request=request_json.get(
+            "request", ""),
+                                                  listings=listings_text)
         messages = [{"role": "user", "content": rank_prompt}]
-
         completion = client.chat.completions.create(
             model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
             messages=messages,
@@ -162,27 +183,36 @@ async def rank_endpoint(request: BrowsingRequest):
             top_k=50,
             repetition_penalty=1,
         )
-
         rank_response = completion.choices[0].message.content
+        print("Raw AI response:", rank_response)
 
-        # Clean the response if it's not a valid JSON
+        # Attempt to clean the response if it's not a valid JSON
         cleaned_response = rank_response.strip()
-        if not (cleaned_response.startswith('[') and cleaned_response.endswith(']')):
-            cleaned_response = cleaned_response.split('[', 1)[-1].rsplit(']', 1)[0]
+        if not (cleaned_response.startswith('[')
+                and cleaned_response.endswith(']')):
+            cleaned_response = cleaned_response.split('[',
+                                                      1)[-1].rsplit(']', 1)[0]
             cleaned_response = f"[{cleaned_response}]"
+        print("Cleaned response:", cleaned_response)
 
         parsed_response = json.loads(cleaned_response)
-        print(parsed_response)
+        print("Parsed response:", parsed_response)
+
         # Ensure the response is in the correct format
         top_listings = [Listing(**item) for item in parsed_response]
-
-        if rank_response.strip().lower() == "null" or rank_response.strip() == "[]":
+        if rank_response.strip().lower() == "null" or rank_response.strip(
+        ) == "[]":
             return BrowsingResponse(top_listings=None)
-
+        return BrowsingResponse(top_listings=top_listings)
     except json.JSONDecodeError as json_error:
-        raise HTTPException(status_code=500, detail=f"Invalid JSON response from AI: {str(json_error)}")
+        print(f"JSON Decode Error: {str(json_error)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Invalid JSON response from AI: {str(json_error)}")
     except Exception as e:
+        print(f"Unexpected Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Create new item in the database
 @app.post("/searchItems", response_model=dict)
@@ -195,7 +225,8 @@ async def search_item(item: ItemSearch):
             VALUES ($1, $2, $3, $4)
             RETURNING id, userid, searchitem, minprice, maxprice
         """
-        result = await conn.fetchrow(query, item.userid, item.searchitem, item.minprice, item.maxprice)
+        result = await conn.fetchrow(query, item.userid, item.searchitem,
+                                     item.minprice, item.maxprice)
         await app.state.db_pool.release(conn)
         return {
             "id": result["id"],
@@ -205,7 +236,8 @@ async def search_item(item: ItemSearch):
             "maxprice": result["maxprice"]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
+        raise HTTPException(status_code=500,
+                            detail=f"Failed to create item: {e}")
 
 
 @app.post("/addItem", response_model=dict)
@@ -217,7 +249,11 @@ async def create_item(item: Item):
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished
         """
-        result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice, item.datepublished)
+        result = await conn.fetchrow(query, item.description, item.searchid,
+                                     item.url, item.image, item.message,
+                                     item.itemsearch, item.listedprice,
+                                     item.estimateprice, item.minprice,
+                                     item.maxprice, item.datepublished)
         await app.state.db_pool.release(conn)
         return {
             "id": result["id"],
@@ -234,18 +270,20 @@ async def create_item(item: Item):
             "datepublished": result["datepublished"]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
-        
+        raise HTTPException(status_code=500,
+                            detail=f"Failed to create item: {e}")
+
 
 class ItemList(BaseModel):
     items: List[Item]
-    
-@app.post("/rank")
-async def rank(item_list: shortItemList):
-    # Extract the URLs from the items
-    item_urls = [item.url for item in item_list.items]
 
-    return {"urls": item_urls}
+
+# @app.post("/rank")
+# async def rank(item_list: shortItemList):
+#     # Extract the URLs from the items
+#     item_urls = [item.url for item in item_list.items]
+
+#     return {"urls": item_urls}
 
 
 @app.post("/viable")
@@ -257,7 +295,11 @@ async def viable(item: Item):
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished
         """
-        result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice, item.datepublished)
+        result = await conn.fetchrow(query, item.description, item.searchid,
+                                     item.url, item.image, item.message,
+                                     item.itemsearch, item.listedprice,
+                                     item.estimateprice, item.minprice,
+                                     item.maxprice, item.datepublished)
         await app.state.db_pool.release(conn)
         return {
             "id": result["id"],
@@ -274,7 +316,9 @@ async def viable(item: Item):
             "datepublished": result["datepublished"]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
+        raise HTTPException(status_code=500,
+                            detail=f"Failed to create item: {e}")
+
 
 @app.post("/viables")
 async def viables(item_list: ItemList):
@@ -286,12 +330,19 @@ async def viables(item_list: ItemList):
             RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished
         """
         for item in item_list.items:
-            
-            result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice, item.datepublished)
+
+            result = await conn.fetchrow(query, item.description,
+                                         item.searchid, item.url, item.image,
+                                         item.message, item.itemsearch,
+                                         item.listedprice, item.estimateprice,
+                                         item.minprice, item.maxprice,
+                                         item.datepublished)
         await app.state.db_pool.release(conn)
         return "Added viable options"
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
+        raise HTTPException(status_code=500,
+                            detail=f"Failed to create item: {e}")
+
 
 @app.get("/viables")
 async def getViables(id: int = Query(...)):
@@ -313,6 +364,7 @@ async def getViables(id: int = Query(...)):
         if conn:
             await app.state.db_pool.release(conn)
 
+
 @app.post("/validate", response_model=ValidateResponse)
 async def validate_endpoint(request: ValidateRequest):
     try:
@@ -320,16 +372,14 @@ async def validate_endpoint(request: ValidateRequest):
             f"Item description: {item.description}\n"
             f"Price: {item.price}\n"
             f"Listed price: {item.listedprice}\n"
+            f"Message: {item.message}\n"
             f"Date published: {item.datepublished}\n"
-            f"URL: {item.url}"
-            for item in request.items
+            f"URL: {item.url}" for item in request.items
         ])
 
         validate_prompt = VALIDATE_PROMPT_TEMPLATE.format(
-            request=request.request,
-            listings=listings_text
-        )
-        
+            request=request.request, listings=listings_text)
+
         messages = [{"role": "user", "content": validate_prompt}]
 
         completion = client.chat.completions.create(
@@ -353,21 +403,24 @@ async def validate_endpoint(request: ValidateRequest):
         return ValidateResponse(validated_items=validated_items)
 
     except json.JSONDecodeError as json_error:
-        raise HTTPException(status_code=500, detail=f"Invalid JSON response from LLM: {str(json_error)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Invalid JSON response from LLM: {str(json_error)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     try:
         # Construct the conversation history
-        conversation_history = "\n".join([f"{msg.role}: {msg.content}" for msg in request.messages])
+        conversation_history = "\n".join(
+            [f"{msg.role}: {msg.content}" for msg in request.messages])
 
         negotiation_prompt = NEGOTIATION_PROMPT_TEMPLATE.format(
             context=request.context,
             users_goal=request.users_goal,
-            conversation_history=conversation_history
-        )
+            conversation_history=conversation_history)
 
         messages = [{"role": "user", "content": negotiation_prompt}]
 
@@ -392,21 +445,23 @@ async def chat_endpoint(request: ChatRequest):
 
         return ChatResponse(
             response=NegotiationResponse(**negotiation_response),
-            conversation_ended=conversation_ended
-        )
+            conversation_ended=conversation_ended)
 
     except json.JSONDecodeError as json_error:
-        raise HTTPException(status_code=500, detail=f"Invalid JSON response from bot: {str(json_error)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Invalid JSON response from bot: {str(json_error)}")
     except Exception as e:
         logging.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 def is_ending_message(message: str) -> bool:
-    ending_patterns = [
-        r"thank you,?\s+all the best",
-        r"amazing,?\s+thank you"
-    ]
-    return any(re.search(pattern, message.lower()) is not None for pattern in ending_patterns)
+    ending_patterns = [r"thank you,?\s+all the best", r"amazing,?\s+thank you"]
+    return any(
+        re.search(pattern, message.lower()) is not None
+        for pattern in ending_patterns)
+
 
 if __name__ == "__main__":
     import uvicorn
