@@ -133,22 +133,82 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class Item(BaseModel):
+class shortItem(BaseModel):
     description: str
     imageUrl: str
     url: str
     price: float
     
-    
-class ItemList(BaseModel):
-    items: List[Item]
+class shortItemList(BaseModel):
+    items: List[shortItem]
 
+class Item(BaseModel):
+    description: str
+    searchid: int
+    url: str
+    image: str
+    message: str
+    itemsearch: str
+    listedprice: float
+    estimateprice: float
+    minprice: float
+    maxprice: float
+
+class ItemList(BaseModel):
+    items: List[ItemCreate]
+    
 @app.post("/rank")
-async def rank(item_list: ItemList):
+async def rank(item_list: shortItemList):
     # Extract the URLs from the items
     item_urls = [item.url for item in item_list.items]
 
     return {"urls": item_urls}
+
+
+@app.post("/viable")
+async def viable(item: ItemCreate):
+    try:
+        conn = await app.state.db_pool.acquire()
+        query = """
+            INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice
+        """
+        result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice)
+        await app.state.db_pool.release(conn)
+        return {
+            "id": result["id"],
+            "description": result["description"],
+            "searchid": result["searchid"],
+            "url": result["url"],
+            "image": result["image"],
+            "message": result["message"],
+            "itemsearch": result["itemsearch"],
+            "listedprice": result["listedprice"],
+            "estimateprice": result["estimateprice"],
+            "minprice": result["minprice"],
+            "maxprice": result["maxprice"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
+
+@app.post("/viables")
+async def viables(item_list: ItemList):
+    try:
+        conn = await app.state.db_pool.acquire()
+        query = """
+            INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice
+        """
+        for item in item_list.items:
+            
+            result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice)
+        await app.state.db_pool.release(conn)
+        return "Added viable options"
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
+    
 
 if __name__ == "__main__":
     import uvicorn
