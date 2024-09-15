@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, ValidationError
 import asyncpg
 from contextlib import asynccontextmanager
@@ -8,6 +8,12 @@ from together import Together
 from typing import List
 from Prompts.BrowsingAgent import BROWSING_PROMPT_TEMPLATE
 import json
+import re
+import logging
+
+
+logging.basicConfig(filename='negotiation.log', level=logging.INFO, 
+format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 # Load environment variables
@@ -52,6 +58,7 @@ class Listing(BaseModel):
 
 class BrowsingRequest(BaseModel):
     request: str
+    searchid: int
     items: List[shortItem]
 
 class BrowsingResponse(BaseModel):
@@ -140,6 +147,54 @@ async def browse_endpoint(request: BrowsingRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/browse2", response_model=BrowsingResponse)
+async def browse2_endpoint(request: BrowsingRequest):
+    try:
+        # for item in request.items:
+            # print(item)
+        listings_text = "\n\n".join([
+            # f"Item name: {item.name}\n"
+            f"Item description: {item.description}\n"
+            f"Price: {item.price}"
+            for item in request.items
+        ])
+
+        updated_prompt = BROWSING_PROMPT_TEMPLATE.format(
+            request=request.request,
+            listings=listings_text
+        )
+
+        messages = [{"role": "user", "content": updated_prompt}]
+
+        completion = client.chat.completions.create(
+            model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+            messages=messages,
+            max_tokens=1024,
+            temperature=0,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+        )
+
+        ai_response = completion.choices[0].message.content
+
+        # Attempt to clean the response if it's not a valid JSON
+        cleaned_response = ai_response.strip()
+        if not (cleaned_response.startswith('[') and cleaned_response.endswith(']')):
+            cleaned_response = cleaned_response.split('[', 1)[-1].rsplit(']', 1)[0]
+            cleaned_response = f"[{cleaned_response}]"
+
+        parsed_response = json.loads(cleaned_response)
+        print(parsed_response)
+        # Ensure the response is in the correct format
+        top_listings = [Listing(**item) for item in parsed_response]
+
+        return BrowsingResponse(top_listings=top_listings)
+
+    except json.JSONDecodeError as json_error:
+        raise HTTPException(status_code=500, detail=f"Invalid JSON response from AI: {str(json_error)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Create new item in the database
 @app.post("/searchItems", response_model=dict)
@@ -265,7 +320,26 @@ async def viables(item_list: ItemList):
         return "Added viable options"
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
-    
+
+@app.get("/viables")
+async def getViables(id: int = Query(...)):
+    try:
+        conn = await app.state.db_pool.acquire()
+        query = "SELECT * FROM item WHERE searchid = $1"
+        params = id
+        items = await conn.fetch(query, params)
+
+        if not items:
+            raise HTTPException(status_code=404, detail="Item not found")
+
+        return items
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Ensure the connection is released back to the pool
+        if conn:
+            await app.state.db_pool.release(conn)
 
 if __name__ == "__main__":
     import uvicorn
