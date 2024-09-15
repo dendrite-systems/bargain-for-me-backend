@@ -1,6 +1,6 @@
 RANK_PROMPT_TEMPLATE = """
 Given the following request and listings, please return a ranked json array of relevant items to the user. The items should be ranked in order of relevance to the user's request. 
-Each listing in the array should be a JSON object with 'name', 'description', and 'price' fields.
+Each listing in the array should be a JSON object with only a 'url' field.
 
 User's request: {request}
 

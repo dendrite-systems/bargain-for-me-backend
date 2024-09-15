@@ -165,7 +165,8 @@ async def rank_endpoint(request: Request):
         # Create listings text
         listings_text = "\n\n".join([
             f"Item description: {item.get('description', 'N/A')}\n"
-            f"Price: {item.get('price', 'N/A')}"
+            f"Price: {item.get('price', 'N/A')}\n"
+            f"URL: {item.get('url', 'N/A')}"
             for item in request_json.get("items", [])
         ])
         print("Listings text:", listings_text)
