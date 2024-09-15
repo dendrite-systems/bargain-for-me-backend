@@ -2,6 +2,12 @@ import os
 import asyncio
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+<<<<<<< HEAD
+=======
+from together import Together
+from dotenv import load_dotenv
+import json
+>>>>>>> 415ff95b2a4d55784bbdeb2a08ba7a32cf0b275b
 import asyncpg
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -39,8 +45,10 @@ class ItemCreate(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     chat_history: list = []
+    seller_response: dict = {}
 
 class ChatResponse(BaseModel):
+<<<<<<< HEAD
     response: str
 # Lifespan context manager for resource management
 @asynccontextmanager
@@ -50,6 +58,10 @@ async def lifespan(app: FastAPI):
     yield
     # Clean up (close connection pool) when app shuts down
     await app.state.db_pool.close()
+=======
+    message: str
+    offer: float | None = None
+>>>>>>> 415ff95b2a4d55784bbdeb2a08ba7a32cf0b275b
 
 # FastAPI app initialization with lifespan
 app = FastAPI(lifespan=lifespan)
@@ -118,16 +130,33 @@ async def create_item(item: ItemCreate):
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     try:
+<<<<<<< HEAD
         messages = request.chat_history + [{"role": "user", "content": request.message}]
 
-        completion = client.chat.completions.create(
-            model="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-            messages=messages,
-            max_tokens=4096,
-            temperature=0.3
+=======
+        updated_prompt = PROMPT_TEMPLATE.format(
+            request=request.message,
+            seller_response=json.dumps(request.seller_response)
         )
-        print(completion.choices[0].message.content)
-        return ChatResponse(response=completion.choices[0].message.content)
+        
+        messages = request.chat_history + [{"role": "user", "content": updated_prompt}]
+        
+>>>>>>> 415ff95b2a4d55784bbdeb2a08ba7a32cf0b275b
+        completion = client.chat.completions.create(
+            model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+            messages=messages,
+            max_tokens=1024,
+            temperature=0,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+        )
+        
+        ai_response = json.loads(completion.choices[0].message.content)
+        return ChatResponse(**ai_response)
+    
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid JSON response from AI")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
