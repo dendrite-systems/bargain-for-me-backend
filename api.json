@@ -1,0 +1,247 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "bargain4me",
+      "description": "API for searching items and chatting.",
+      "version": "1.0.0"
+    },
+    "servers": [
+      {
+        "url": "https://d53503de-4a3d-4eb2-840a-bda4b5fea6e4-00-mpqny06oapwx.spock.replit.dev",
+        "description": "Development server"
+      }
+    ],
+    "paths": {
+      "/test_db": {
+        "get": {
+          "summary": "Test Database Connection",
+          "operationId": "test_db",
+          "responses": {
+            "200": {
+              "description": "Database version",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "PostgreSQL Version": {
+                        "type": "string",
+                        "example": "PostgreSQL 13.3 on x86_64-pc-linux-gnu"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Database connection failed",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "detail": {
+                        "type": "string",
+                        "example": "Database connection failed: ..."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/searchItems": {
+        "post": {
+          "summary": "Create a new search item",
+          "operationId": "search_item",
+          "requestBody": {
+            "description": "Item search object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemSearch"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "Item created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "integer" },
+                      "userid": { "type": "string" },
+                      "searchitem": { "type": "string" },
+                      "minprice": { "type": "float" },
+                      "maxprice": { "type": "float" }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Failed to create item",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "detail": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/addItem": {
+        "post": {
+          "summary": "Add a new item",
+          "operationId": "create_item",
+          "requestBody": {
+            "description": "Item create object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemCreate"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "Item added successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "integer" },
+                      "description": { "type": "string" },
+                      "searchid": { "type": "integer" },
+                      "url": { "type": "string" },
+                      "image": { "type": "string" },
+                      "message": { "type": "string" },
+                      "itemsearch": { "type": "string" },
+                      "listedprice": { "type": "float" },
+                      "estimateprice": { "type": "float" },
+                      "minprice": { "type": "float" },
+                      "maxprice": { "type": "float" }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Failed to add item",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "detail": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/chat": {
+        "post": {
+          "summary": "Chat with the API",
+          "operationId": "chat_endpoint",
+          "requestBody": {
+            "description": "Chat request object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRequest"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "Chat response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ChatResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Failed to chat",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "detail": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "ItemSearch": {
+          "type": "object",
+          "properties": {
+            "userid": { "type": "string", "example": "user123" },
+            "searchitem": { "type": "string", "example": "laptop" },
+            "minprice": { "type": "number", "example": 100.0 },
+            "maxprice": { "type": "number", "example": 1000.0 }
+          },
+          "required": ["userid", "searchitem", "minprice", "maxprice"]
+        },
+        "ItemCreate": {
+          "type": "object",
+          "properties": {
+            "description": { "type": "string", "example": "Laptop with 16GB RAM" },
+            "searchid": { "type": "integer", "example": 1 },
+            "url": { "type": "string", "example": "http://example.com" },
+            "image": { "type": "string", "example": "http://example.com/image.png" },
+            "message": { "type": "string", "example": "Great deal on a laptop" },
+            "itemsearch": { "type": "string", "example": "laptop" },
+            "listedprice": { "type": "number", "example": 900.0 },
+            "estimateprice": { "type": "number", "example": 850.0 },
+            "minprice": { "type": "number", "example": 100.0 },
+            "maxprice": { "type": "number", "example": 1000.0 }
+          },
+          "required": ["description", "searchid", "url", "image", "message", "itemsearch", "listedprice", "estimateprice", "minprice", "maxprice"]
+        },
+        "ChatRequest": {
+          "type": "object",
+          "properties": {
+            "message": { "type": "string", "example": "Hello, how are you?" },
+            "chat_history": { "type": "array", "items": { "type": "object" } }
+          },
+          "required": ["message"]
+        },
+        "ChatResponse": {
+          "type": "object",
+          "properties": {
+            "response": { "type": "string", "example": "I'm doing well, thank you!" }
+          }
+        }
+      }
+    }
+  }
+  
