@@ -134,10 +134,11 @@ async def chat_endpoint(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 class Item(BaseModel):
-    name: str
+    description: str
+    imageUrl: str
     url: str
     price: float
-    description: str
+    
     
 class ItemList(BaseModel):
     items: List[Item]
