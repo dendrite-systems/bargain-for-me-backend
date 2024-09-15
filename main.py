@@ -1,24 +1,25 @@
 import os
-import asyncio
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 import asyncpg
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from together import Together
 from typing import List
+from Prompts.BrowsingAgent import BROWSING_PROMPT_TEMPLATE
+import json
+
 
 # Load environment variables
 load_dotenv()
+
 client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL")
-print(DATABASE_URL)
 # FastAPI app initialization
-app = FastAPI()
+# app = FastAPI()
 
-# Pydantic model for data validation
 class ItemSearch(BaseModel):
     userid: str
     searchitem: str
@@ -37,6 +38,29 @@ class Item(BaseModel):
     minprice: float
     maxprice: float
     datepublished: str
+
+class shortItem(BaseModel):
+    description: str
+    imageUrl: str
+    url: str
+    price: float
+    
+class Listing(BaseModel):
+    # name: str
+    description: str
+    price: float
+
+class BrowsingRequest(BaseModel):
+    request: str
+    items: List[shortItem]
+
+class BrowsingResponse(BaseModel):
+    top_listings: list[Listing]
+
+
+
+class shortItemList(BaseModel):
+    items: List[shortItem]
 
 class ChatRequest(BaseModel):
     message: str
@@ -66,6 +90,56 @@ async def test_db():
         return {"PostgreSQL Version": version}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {e}")
+
+@app.post("/browse", response_model=BrowsingResponse)
+async def browse_endpoint(request: BrowsingRequest):
+    try:
+        # for item in request.items:
+            # print(item)
+        listings_text = "\n\n".join([
+            # f"Item name: {item.name}\n"
+            f"Item description: {item.description}\n"
+            f"Price: {item.price}"
+            for item in request.items
+        ])
+
+        updated_prompt = BROWSING_PROMPT_TEMPLATE.format(
+            request=request.request,
+            listings=listings_text
+        )
+
+        messages = [{"role": "user", "content": updated_prompt}]
+
+        completion = client.chat.completions.create(
+            model="meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+            messages=messages,
+            max_tokens=1024,
+            temperature=0,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+        )
+
+        ai_response = completion.choices[0].message.content
+
+        # Attempt to clean the response if it's not a valid JSON
+        cleaned_response = ai_response.strip()
+        if not (cleaned_response.startswith('[') and cleaned_response.endswith(']')):
+            cleaned_response = cleaned_response.split('[', 1)[-1].rsplit(']', 1)[0]
+            cleaned_response = f"[{cleaned_response}]"
+
+        parsed_response = json.loads(cleaned_response)
+        print(parsed_response)
+        # Ensure the response is in the correct format
+        top_listings = [Listing(**item) for item in parsed_response]
+
+        return BrowsingResponse(top_listings=top_listings)
+
+    except json.JSONDecodeError as json_error:
+        raise HTTPException(status_code=500, detail=f"Invalid JSON response from AI: {str(json_error)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Create new item in the database
 @app.post("/searchItems", response_model=dict)
@@ -135,14 +209,6 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class shortItem(BaseModel):
-    description: str
-    imageUrl: str
-    url: str
-    price: float
-    
-class shortItemList(BaseModel):
-    items: List[shortItem]
 
 class ItemList(BaseModel):
     items: List[Item]
