@@ -25,7 +25,7 @@ class ItemSearch(BaseModel):
     minprice: float
     maxprice: float
 
-class ItemCreate(BaseModel):
+class Item(BaseModel):
     description: str
     searchid: int
     url: str
@@ -36,6 +36,7 @@ class ItemCreate(BaseModel):
     estimateprice: float
     minprice: float
     maxprice: float
+    datepublished: str
 
 class ChatRequest(BaseModel):
     message: str
@@ -91,15 +92,15 @@ async def search_item(item: ItemSearch):
 
 
 @app.post("/addItem", response_model=dict)
-async def create_item(item: ItemCreate):
+async def create_item(item: Item):
     try:
         conn = await app.state.db_pool.acquire()
         query = """
-            INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice
+            INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished))
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished
         """
-        result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice)
+        result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice, item.datepublished)
         await app.state.db_pool.release(conn)
         return {
             "id": result["id"],
@@ -112,7 +113,8 @@ async def create_item(item: ItemCreate):
             "listedprice": result["listedprice"],
             "estimateprice": result["estimateprice"],
             "minprice": result["minprice"],
-            "maxprice": result["maxprice"]
+            "maxprice": result["maxprice"],
+            "datepublished": result["datepublished"]
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
@@ -142,20 +144,8 @@ class shortItem(BaseModel):
 class shortItemList(BaseModel):
     items: List[shortItem]
 
-class Item(BaseModel):
-    description: str
-    searchid: int
-    url: str
-    image: str
-    message: str
-    itemsearch: str
-    listedprice: float
-    estimateprice: float
-    minprice: float
-    maxprice: float
-
 class ItemList(BaseModel):
-    items: List[ItemCreate]
+    items: List[Item]
     
 @app.post("/rank")
 async def rank(item_list: shortItemList):
@@ -166,15 +156,15 @@ async def rank(item_list: shortItemList):
 
 
 @app.post("/viable")
-async def viable(item: ItemCreate):
+async def viable(item: Item):
     try:
         conn = await app.state.db_pool.acquire()
         query = """
-            INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice
+            INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished
         """
-        result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice)
+        result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice, item.datepublished)
         await app.state.db_pool.release(conn)
         return {
             "id": result["id"],
@@ -187,7 +177,8 @@ async def viable(item: ItemCreate):
             "listedprice": result["listedprice"],
             "estimateprice": result["estimateprice"],
             "minprice": result["minprice"],
-            "maxprice": result["maxprice"]
+            "maxprice": result["maxprice"],
+            "datepublished": result["datepublished"]
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
@@ -197,13 +188,13 @@ async def viables(item_list: ItemList):
     try:
         conn = await app.state.db_pool.acquire()
         query = """
-            INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice
+            INSERT INTO item (description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING id, description, searchid, url, image, message, itemsearch, listedprice, estimateprice, minprice, maxprice, datepublished
         """
         for item in item_list.items:
             
-            result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice)
+            result = await conn.fetchrow(query, item.description, item.searchid, item.url, item.image, item.message, item.itemsearch, item.listedprice, item.estimateprice, item.minprice, item.maxprice, item.datepublished)
         await app.state.db_pool.release(conn)
         return "Added viable options"
     except Exception as e:
