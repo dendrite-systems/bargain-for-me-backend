@@ -10,8 +10,8 @@ Please analyze the request and the available listings. Return only the top 3 mos
 
 Response format:
 [
-  {{"name": "Item Name", "description": "Item Description", "price": 100.00}},
-  {{"name": "Item Name", "description": "Item Description", "price": 200.00}},
-  {{"name": "Item Name", "description": "Item Description", "price": 300.00}}
+  {{"name": "Item Name", "description": "Item Description", "price": "Item Price"}},
+  {{"name": "Item Name", "description": "Item Description", "price": "Item Price"}},
+  {{"name": "Item Name", "description": "Item Description", "price": "Item Price"}}
 ]
 """
