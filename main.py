@@ -6,6 +6,7 @@ import asyncpg
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from together import Together
+from typing import List
 
 # Load environment variables
 load_dotenv()
@@ -115,6 +116,7 @@ async def create_item(item: ItemCreate):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create item: {e}")
+        
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     try:
@@ -131,7 +133,18 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class Item(BaseModel):
+    name: str
+    url: str
+    price: float
+    description: str
+    
+class ItemList(BaseModel):
+    items: List[Item]
 
+@app.post("/rank")
+async def rank(item_list: ItemList):
+    return {"received_items": item_list.items}
 
 if __name__ == "__main__":
     import uvicorn
