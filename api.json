@@ -282,7 +282,7 @@
       "Item": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" },
+          "imageUrl": { "type": "string" },
           "url": { "type": "string" },
           "price": { "type": "number" },
           "description": { "type": "string" }
