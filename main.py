@@ -13,6 +13,8 @@ import json
 import json
 import re
 import logging
+from groq import Groq
+
 
 logging.basicConfig(filename='negotiation.log',
                     level=logging.INFO,
@@ -21,7 +23,7 @@ logging.basicConfig(filename='negotiation.log',
 # Load environment variables
 load_dotenv()
 
-client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL")
