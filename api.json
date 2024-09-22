@@ -1,30 +1,32 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.2",
   "info": {
-    "title": "bargain4me",
-    "version": "1.0.0",
-    "description": "API for searching items, adding items, and chatting with a model."
+    "title": "Item Management API",
+    "description": "This is an API for managing items, browsing, searching, and more.",
+    "version": "1.0.0"
   },
   "servers": [
     {
-      "url": "https://d53503de-4a3d-4eb2-840a-bda4b5fea6e4-00-mpqny06oapwx.spock.replit.dev",
-      "description": "Local development server"
+      "url": "http://localhost:8000",
+      "description": "Local Development Server"
     }
   ],
   "paths": {
     "/test_db": {
       "get": {
-        "summary": "Test database connection",
+        "summary": "Test the Database Connection",
+        "description": "This endpoint tests the connection to the PostgreSQL database.",
         "responses": {
           "200": {
-            "description": "Successfully connected to the database",
+            "description": "Database connection successful",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "PostgreSQL Version": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "Version of the PostgreSQL database"
                     }
                   }
                 }
@@ -32,26 +34,46 @@
             }
           },
           "500": {
-            "description": "Database connection failed",
+            "description": "Database connection failed"
+          }
+        }
+      }
+    },
+    "/browse": {
+      "post": {
+        "summary": "Browse Listings",
+        "description": "Send a browsing request to the AI model and receive top listings.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowsingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Top listings",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "detail": {
-                      "type": "string"
-                    }
-                  }
+                  "$ref": "#/components/schemas/BrowsingResponse"
                 }
               }
             }
+          },
+          "500": {
+            "description": "Invalid JSON or server error"
           }
         }
       }
     },
     "/searchItems": {
       "post": {
-        "summary": "Create a new item search",
+        "summary": "Search for Items",
+        "description": "Search for items by providing details such as user ID, item name, and price range.",
         "requestBody": {
           "required": true,
           "content": {
@@ -64,98 +86,118 @@
         },
         "responses": {
           "200": {
-            "description": "Item search created successfully",
+            "description": "Item successfully created",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": { "type": "integer" },
-                    "userid": { "type": "string" },
-                    "searchitem": { "type": "string" },
-                    "minprice": { "type": "number" },
-                    "maxprice": { "type": "number" }
+                    "id": {
+                      "type": "integer",
+                      "description": "ID of the created item"
+                    },
+                    "userid": {
+                      "type": "string",
+                      "description": "User ID"
+                    },
+                    "searchitem": {
+                      "type": "string",
+                      "description": "Search item name"
+                    },
+                    "minprice": {
+                      "type": "float",
+                      "description": "Minimum price of the item"
+                    },
+                    "maxprice": {
+                      "type": "float",
+                      "description": "Maximum price of the item"
+                    }
                   }
                 }
               }
             }
           },
           "500": {
-            "description": "Failed to create item",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "detail": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Failed to create the item"
           }
         }
       }
     },
     "/addItem": {
       "post": {
-        "summary": "Add a new item to the database",
+        "summary": "Add an Item",
+        "description": "Create a new item with all necessary details such as description, price, etc.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ItemCreate"
+                "$ref": "#/components/schemas/Item"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Item added successfully",
+            "description": "Item successfully added",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": { "type": "integer" },
-                    "description": { "type": "string" },
-                    "searchid": { "type": "integer" },
-                    "url": { "type": "string" },
-                    "image": { "type": "string" },
-                    "message": { "type": "string" },
-                    "itemsearch": { "type": "string" },
-                    "listedprice": { "type": "number" },
-                    "estimateprice": { "type": "number" },
-                    "minprice": { "type": "number" },
-                    "maxprice": { "type": "number" }
+                    "id": {
+                      "type": "integer",
+                      "description": "ID of the created item"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "searchid": {
+                      "type": "integer"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "image": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "itemsearch": {
+                      "type": "string"
+                    },
+                    "listedprice": {
+                      "type": "float"
+                    },
+                    "estimateprice": {
+                      "type": "float"
+                    },
+                    "minprice": {
+                      "type": "float"
+                    },
+                    "maxprice": {
+                      "type": "float"
+                    },
+                    "datepublished": {
+                      "type": "string",
+                      "description": "Date the item was published"
+                    }
                   }
                 }
               }
             }
           },
           "500": {
-            "description": "Failed to add item",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "detail": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Failed to add the item"
           }
         }
       }
     },
     "/chat": {
       "post": {
-        "summary": "Send a chat message and receive a response",
+        "summary": "Chat with AI",
+        "description": "Send a message and a chat history to interact with AI.",
         "requestBody": {
           "required": true,
           "content": {
@@ -168,7 +210,7 @@
         },
         "responses": {
           "200": {
-            "description": "Chat response received",
+            "description": "AI response",
             "content": {
               "application/json": {
                 "schema": {
@@ -178,26 +220,15 @@
             }
           },
           "500": {
-            "description": "Failed to process chat request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "detail": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Chat interaction failed"
           }
         }
       }
     },
-    "/rank": {
+    "/viables": {
       "post": {
-        "summary": "Rank items in a list",
+        "summary": "Add Viable Items",
+        "description": "Add multiple viable items.",
         "requestBody": {
           "required": true,
           "content": {
@@ -210,22 +241,54 @@
         },
         "responses": {
           "200": {
-            "description": "Items received for ranking",
+            "description": "Viable options added",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "received_items": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Item"
-                      }
-                    }
+                  "type": "string",
+                  "example": "Added viable options"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to add viable items"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get Viable Items by Search ID",
+        "description": "Retrieve all viable items based on a search ID.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The search ID to filter viable items"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieved viable items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Item"
                   }
                 }
               }
             }
+          },
+          "404": {
+            "description": "No items found"
+          },
+          "500": {
+            "description": "Failed to retrieve viable items"
           }
         }
       }
@@ -236,69 +299,72 @@
       "ItemSearch": {
         "type": "object",
         "properties": {
-          "userid": { "type": "string" },
-          "searchitem": { "type": "string" },
-          "minprice": { "type": "number" },
-          "maxprice": { "type": "number" }
-        }
-      },
-      "ItemCreate": {
-        "type": "object",
-        "properties": {
-          "description": { "type": "string" },
-          "searchid": { "type": "integer" },
-          "url": { "type": "string" },
-          "image": { "type": "string" },
-          "message": { "type": "string" },
-          "itemsearch": { "type": "string" },
-          "listedprice": { "type": "number" },
-          "estimateprice": { "type": "number" },
-          "minprice": { "type": "number" },
-          "maxprice": { "type": "number" }
-        }
-      },
-      "ChatRequest": {
-        "type": "object",
-        "properties": {
-          "message": { "type": "string" },
-          "chat_history": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "role": { "type": "string" },
-                "content": { "type": "string" }
-              }
-            }
+          "userid": {
+            "type": "string"
+          },
+          "searchitem": {
+            "type": "string"
+          },
+          "minprice": {
+            "type": "float"
+          },
+          "maxprice": {
+            "type": "float"
           }
-        }
-      },
-      "ChatResponse": {
-        "type": "object",
-        "properties": {
-          "response": { "type": "string" }
         }
       },
       "Item": {
         "type": "object",
         "properties": {
-          "imageUrl": { "type": "string" },
-          "url": { "type": "string" },
-          "price": { "type": "number" },
-          "description": { "type": "string" }
-        }
-      },
-      "ItemList": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Item"
-            }
+          "description": {
+            "type": "string"
+          },
+          "searchid": {
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "itemsearch": {
+            "type": "string"
+          },
+          "listedprice": {
+            "type": "float"
+          },
+          "estimateprice": {
+            "type": "float"
+          },
+          "minprice": {
+            "type": "float"
+          },
+          "maxprice": {
+            "type": "float"
+          },
+          "datepublished": {
+            "type": "string"
           }
         }
-      }
-    }
-  }
-}
+      },
+      "shortItem": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "price": {
+            "type": "float"
+          }
+        }
+     
